@@ -1,6 +1,6 @@
 # Hottie is a sampling profiler that finds hot paths in your Nim code.
 
-Currently only works on win32 with GCC (mingw).
+Currently only works on Windows with GCC (mingw).
 
 `install hottie`
 
@@ -16,7 +16,7 @@ Then run your file through hottie:
 
 # Example:
 
-`hottie tests\benchmark_svg.exe`
+`hottie .\tests\benchmark_svg.exe`
 
 First output from the program:
 
@@ -28,7 +28,7 @@ svg decode ........................ 28.371 ms     29.925 ms    ±0.259   x167
 Then output from hottie:
 
 ```
-samples       time  path
+samples        time  path
     1198     627.ms  C:\nim-1.4.6\lib\system.nim:2200
      526     275.ms  C:\p\pixie\src\pixie\paths.nim:1145
      501     262.ms
@@ -62,3 +62,18 @@ samples       time  path
 ```
 
 Links should be clickable in your VSCode terminal.
+
+# Usage:
+
+```
+Usage:
+  hottie [optional-params] [paths: string...]
+Options:
+  -h, --help                         print this cligen-erated help
+  --help-syntax                      advanced: prepend,plurals,..
+  -w=, --workingDir=  string  ""     set workingDir
+  -a, --addresses     bool    false  profile by assembly instruction addresses
+  -l, --lines         bool    false  profile by source line (default)
+  -p, --procedures    bool    false  profile by inlined and regular procedure definitions
+  -r, --regions       bool    false  profile by regular procedure definitions only
+```

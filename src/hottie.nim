@@ -137,7 +137,6 @@ proc addressToDumpLine(dumpLines: seq[DumpLine], address: uint64): DumpLine =
 
 proc dumpScan(
   dumpLines: seq[DumpLine],
-  cpuSamples: int,
   cpuHotAddresses: Table[DWORD64, int],
   samplesPerSecond: float64
 ) =
@@ -163,37 +162,57 @@ proc dumpScan(
 
 var g: int
 
-proc main(exePath: string, workingDir: string = "", rollUp = Lines) =
+proc hottie(
+  workingDir: string = "",
+  addresses = false,
+  lines = false,
+  procedures = false,
+  regions = false,
+  paths: seq[string]
+) =
   if workingDir != "":
     setCurrentDir(workingDir)
 
-  var
-    p = startProcess(exePath, options={poParentStreams})
-    pid = p.processID()
-    threadIds = getThreadIds(pid)
-    startTime = epochTime()
-    cpuSamples: int
-    cpuHotAddresses = Table[DWORD64, int]()
+  if paths.len == 0:
+    echo "hottie [your.exe]"
+    echo "See hottie --help for more details"
 
-  while p.running:
-    sample(cpuSamples, cpuHotAddresses, pid, threadIds)
-    for j in 0 .. 1_000_000:
-      g += j
-    sleep(0)
-  var
-    exitTime = epochTime()
-  p.close()
+  for exePath in paths:
+    var
+      p = startProcess(exePath, options={poParentStreams})
+      pid = p.processID()
+      threadIds = getThreadIds(pid)
+      startTime = epochTime()
+      cpuSamples: int
+      cpuHotAddresses = Table[DWORD64, int]()
 
-  var
-    dumpLines = dumpLines(exePath, rollUp)
-    samplesPerSecond = (exitTime - startTime) / cpuSamples.float64
+    while p.running:
+      sample(cpuSamples, cpuHotAddresses, pid, threadIds)
+      for j in 0 .. 1_000_000:
+        g += j
+      sleep(0)
+    var
+      exitTime = epochTime()
+    p.close()
 
-  var s = ""
-  for line in dumpLines:
-    s.add(line.address.toHex & "-" & line.addressEnd.toHex & ":" & line.text & "\n")
-  writeFile("dump.s", s)
+    let samplesPerSecond = (exitTime - startTime) / cpuSamples.float64
 
-  dumpScan(dumpLines, cpuSamples, cpuHotAddresses, samplesPerSecond)
+    if addresses:
+      dumpScan(dumpLines(exePath, Addresses), cpuHotAddresses, samplesPerSecond)
+    if procedures:
+      dumpScan(dumpLines(exePath, Procs), cpuHotAddresses, samplesPerSecond)
+    if regions:
+      dumpScan(dumpLines(exePath, Regions), cpuHotAddresses, samplesPerSecond)
+    if lines or not(addresses or procedures or regions):
+      dumpScan(dumpLines(exePath, Lines), cpuHotAddresses, samplesPerSecond)
 
 when isMainModule:
-  dispatch(main)
+  dispatch(
+    hottie,
+    help = {
+      "addresses": "profile by assembly instruction addresses",
+      "lines": "profile by source line (default)",
+      "procedures": "profile by inlined and regular procedure definitions",
+      "regions": "profile by regular procedure definitions only"
+    }
+  )
