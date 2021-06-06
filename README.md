@@ -10,7 +10,7 @@ First compile your exe with `--debugger:native` to get the line numbers, and pro
 
 `nim c --debugger:native -d:release your.nim`
 
-Then run your file with hottie:
+Then run your executable with hottie:
 
 `hottie your.exe`
 
@@ -25,7 +25,7 @@ name ............................... min time      avg time    std dv   runs
 svg decode ........................ 28.371 ms     29.925 ms    ±0.259   x167
 ```
 
-Then output from hottie:
+Then output from `hottie`:
 
 ```
 samples        time  path
