@@ -4,11 +4,11 @@ Currently only works on Windows with GCC (mingw).
 
 # How to use:
 
-First compile your exe with `--debugger:native` to get the line numbers:
+First compile your exe with `--debugger:native` to get the line numbers, and probably `-d:release` or `-d:danger` because you are profiling:
 
-`nim c --debugger:native your.nim`
+`nim c -d:release --debugger:native your.nim`
 
-Then run your file through hottie:
+Then run your file with hottie:
 
 `hottie your.exe`
 
@@ -16,7 +16,7 @@ Then run your file through hottie:
 
 `hottie .\tests\benchmark_svg.exe`
 
-First output from the program:
+First output from the program itself:
 
 ```
 name ............................... min time      avg time    std dv   runs
@@ -59,7 +59,7 @@ samples        time  path
       67     35.1ms  C:\p\pixie\src\pixie\paths.nim:1267
 ```
 
-Links should be clickable in your VSCode terminal.
+File links should be clickable in your VSCode or other terminals.
 
 # Usage:
 
