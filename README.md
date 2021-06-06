@@ -6,7 +6,7 @@ Currently only works on Windows with GCC (mingw).
 
 First compile your exe with `--debugger:native` to get the line numbers, and probably `-d:release` or `-d:danger` because you are profiling:
 
-`nim c -d:release --debugger:native your.nim`
+`nim c --debugger:native -d:release your.nim`
 
 Then run your file with hottie:
 
@@ -71,7 +71,7 @@ Options:
   --help-syntax                      advanced: prepend,plurals,..
   -w=, --workingDir=  string  ""     set workingDir
   -a, --addresses     bool    false  profile by assembly instruction addresses
-  -l, --lines         bool    false  profile by source line (default)
+  -l, --lines         bool    false  profile by source lines (default)
   -p, --procedures    bool    false  profile by inlined and regular procedure definitions
   -r, --regions       bool    false  profile by regular procedure definitions only
 ```

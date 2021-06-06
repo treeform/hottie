@@ -211,7 +211,7 @@ when isMainModule:
     hottie,
     help = {
       "addresses": "profile by assembly instruction addresses",
-      "lines": "profile by source line (default)",
+      "lines": "profile by source lines (default)",
       "procedures": "profile by inlined and regular procedure definitions",
       "regions": "profile by regular procedure definitions only"
     }
