@@ -2,8 +2,6 @@
 
 Currently only works on Windows with GCC (mingw).
 
-`install hottie`
-
 # How to use:
 
 First compile your exe with `--debugger:native` to get the line numbers:
