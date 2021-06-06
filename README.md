@@ -1,4 +1,6 @@
-# Hottie is a sampling profiler that finds hot paths in your Nim code.
+<img src="docs/banner.png">
+
+# Sampling profiler that finds hot paths in your code.
 
 Currently only works on Windows with GCC (mingw).
 
