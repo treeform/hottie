@@ -28,37 +28,37 @@ svg decode ........................ 28.371 ms     29.925 ms    ±0.259   x167
 Then output from `hottie`:
 
 ```
-samples        time  path
-    1198     627.ms  C:\nim-1.4.6\lib\system.nim:2200
-     526     275.ms  C:\p\pixie\src\pixie\paths.nim:1145
-     501     262.ms
-     449     235.ms  C:\p\pixie\src\pixie\paths.nim:1147
-     350     183.ms  C:\nim-1.4.6\lib\system\iterators_1.nim:107
-     258     135.ms  C:\nim-1.4.6\lib\system.nim:1844
-     246     129.ms  C:\nim-1.4.6\lib\system\iterators_1.nim:109
-     243     127.ms  C:\p\vmath\src\vmath.nim:516
-     219     115.ms  C:\p\pixie\src\pixie\paths.nim:1143
-     174     91.1ms  C:\mingw64\include\emmintrin.h:698
-     167     87.4ms  C:\p\pixie\src\pixie\paths.nim:1265
-     160     83.7ms  C:\mingw64\include\emmintrin.h:1392
-     144     75.4ms  C:\p\bumpy\src\bumpy.nim:488
-     138     72.2ms  C:\p\pixie\src\pixie\paths.nim:1301
-     111     58.1ms  C:\nim-1.4.6\lib\system\iterators_1.nim:57
-     110     57.6ms  C:\mingw64\include\emmintrin.h:1270
-     110     57.6ms  C:\nim-1.4.6\lib\system\iterators_1.nim:97
-     106     55.5ms  C:\p\pixie\src\pixie\paths.nim:1101
-     101     52.9ms  C:\p\pixie\src\pixie\paths.nim:1181
-      96     50.2ms  C:\p\bumpy\src\bumpy.nim:485
-      87     45.5ms  C:\p\pixie\src\pixie\paths.nim:1186
-      83     43.4ms  C:\p\pixie\src\pixie\paths.nim:1146
-      83     43.4ms  C:\p\pixie\src\pixie\paths.nim:1165
-      82     42.9ms  C:\p\pixie\src\pixie\paths.nim:1303
-      78     40.8ms  C:\p\pixie\src\pixie\paths.nim:1229
-      71     37.2ms  C:\nim-1.4.6\lib\system\iterators.nim:212
-      70     36.6ms  C:\mingw64\include\emmintrin.h:1300
-      70     36.6ms  C:\p\bumpy\src\bumpy.nim:486
-      70     36.6ms  C:\mingw64\include\emmintrin.h:1204
-      67     35.1ms  C:\p\pixie\src\pixie\paths.nim:1267
+ samples           time   percent what
+     581      582.441ms   11.532% C:\mingw64\include\config\i386\cygwin.S:158
+     349      349.866ms    6.927% C:\p\pixie\src\pixie\paths.nim:1143
+     290      290.719ms    5.756%
+     250      250.620ms    4.962% C:\p\bumpy\src\bumpy.nim:489
+     185      185.459ms    3.672% C:\nim-1.4.6\lib\system\iterators_1.nim:109
+     110      110.273ms    2.183% C:\nim-1.4.6\lib\system\comparisons.nim:267
+     109      109.270ms    2.164% C:\p\pixie\src\pixie\paths.nim:1265
+     106      106.263ms    2.104% C:\p\bumpy\src\bumpy.nim:488
+      97       97.241ms    1.925% C:\p\pixie\src\pixie\paths.nim:1301
+      94       94.233ms    1.866% C:\mingw64\include\emmintrin.h:698
+      91       91.226ms    1.806% C:\nim-1.4.6\lib\system\iterators_1.nim:107
+      87       87.216ms    1.727% C:\p\pixie\src\pixie\paths.nim:1146
+      81       81.201ms    1.608% C:\p\pixie\src\pixie\paths.nim:1145
+      75       75.186ms    1.489% C:\p\vmath\src\vmath.nim:516
+      68       68.169ms    1.350% C:\mingw64\include\emmintrin.h:1270
+      62       62.154ms    1.231% C:\mingw64\include\emmintrin.h:1300
+      58       58.144ms    1.151% C:\p\pixie\src\pixie\paths.nim:1100
+      53       53.131ms    1.052% C:\p\pixie\src\pixie\paths.nim:1063
+      52       52.129ms    1.032% C:\p\pixie\src\pixie\paths.nim:991
+      45       45.112ms    0.893% C:\p\bumpy\src\bumpy.nim:485
+      45       45.112ms    0.893% C:\nim-1.4.6\lib\system\iterators_1.nim:57
+      44       44.109ms    0.873% C:\p\pixie\src\pixie\paths.nim:1303
+      44       44.109ms    0.873% C:\p\pixie\src\pixie\paths.nim:1101
+      42       42.104ms    0.834% C:\mingw64\include\emmintrin.h:1392
+      40       40.099ms    0.794% C:\p\pixie\src\pixie\paths.nim:1183
+      36       36.089ms    0.715% C:\p\pixie\src\pixie\paths.nim:1267
+      35       35.087ms    0.695% C:\nim-1.4.6\lib\system.nim:1527
+      35       35.087ms    0.695% C:\nim-1.4.6\lib\system\memory.nim:24
+      35       35.087ms    0.695% C:\p\pixie\src\pixie\paths.nim:1083
+      32       32.079ms    0.635% C:\p\pixie\src\pixie\paths.nim:1181
 ```
 
 File links should be clickable in your VSCode or other terminals.
@@ -72,8 +72,11 @@ Options:
   -h, --help                         print this cligen-erated help
   --help-syntax                      advanced: prepend,plurals,..
   -w=, --workingDir=  string  ""     set workingDir
+  -r=, --rate=        int     1000   target rate per second (faster not always possible)
+  -n=, --numLines=    int     30     number of lines to display
+  -s, --stacks        bool    false  profile by stack traces
   -a, --addresses     bool    false  profile by assembly instruction addresses
   -l, --lines         bool    false  profile by source lines (default)
   -p, --procedures    bool    false  profile by inlined and regular procedure definitions
-  -r, --regions       bool    false  profile by regular procedure definitions only
+  --regions           bool    false  profile by 'C' stack framed procedure definitions only
 ```
