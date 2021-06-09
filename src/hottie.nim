@@ -1,4 +1,4 @@
-import winim, os, osproc, strformat, tables, algorithm, strutils, times, cligen
+import winim, os, osproc, strformat, tables, algorithm, strutils, times, cligen, flatty/hexPrint, flatty/binny, print
 
 type
   RollUpKind = enum
@@ -18,8 +18,33 @@ type
     addressEnd: uint64
     text: string
 
+proc parseCallGraph(): Table[string, TableRef[string, int]] =
+  let output = readFile("dump.txt")
+  var lines = output.split("\n")
+  var regionName = ""
+  for num, line in lines:
+    if '<' in line and ">:" in line:
+      let
+        arr = line.split(" ", 1)
+      var
+        name = arr[1]
+      if name != "":
+        name = name.strip()[1..^3]
+        # let firstPart = name.split("__")[0]
+        # if firstPart != "":
+        #   name = firstPart
+      #print name
+      regionName = name
+      result[regionName] = newTable[string, int]()
+    if line.endsWith(">") and ("#" in line or "callq" in line):
+      let name = line.split("<",1)[1][0..^2]
+      if not name.startsWith(".rdata"):
+        #print ">>>", name
+        result[regionName][name] = 1
 
-proc dumpLines(exePath: string, rollUp: RollUpKind): seq[DumpLine] =
+
+
+proc parseDumpLines(exePath: string, rollUp: RollUpKind): seq[DumpLine] =
   let (output, code) = execCmdEx("objdump -dl " & exePath)
   writeFile("dump.txt", output)
 
@@ -35,7 +60,7 @@ proc dumpLines(exePath: string, rollUp: RollUpKind): seq[DumpLine] =
       var
         name = arr[1]
       if name != "":
-        name = name.strip()[1..^3].split("__")[0]
+        name = name.strip()[1..^3]#.split("__")[0]
       if rollUp == Regions:
         result.add DumpLine(
           kind: dlFunction,
@@ -101,12 +126,21 @@ proc getThreadIds(pid: int): seq[int] =
       valid = Thread32Next(h, te.addr)
     CloseHandle(h)
 import print
+
+proc addressToDumpLine(dumpLines: seq[DumpLine], address: uint64): DumpLine =
+  for line in dumpLines:
+    if line.address <= address and address <= line.addressEnd:
+      #print line.address, "<=", address, "<=", line.addressEnd
+      return line
+
 proc sample(
   cpuSamples: var int,
   cpuHotAddresses: var Table[DWORD64, int],
   cpuHotStacks: var Table[seq[uint64], int],
   pid: int,
-  threadIds: seq[int]
+  threadIds: seq[int],
+  dumpLine: seq[DumpLine],
+  callGraph: Table[string, TableRef[string, int]]
 ) =
   #for threadId in threadIds:
   block:
@@ -127,37 +161,94 @@ proc sample(
       context.addr
     )
 
-    # proc StackWalk64*(MachineType: DWORD, hProcess: HANDLE, hThread: HANDLE, StackFrame: LPSTACKFRAME64, ContextRecord: PVOID, ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64, FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64, GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64, TranslateAddress: PTRANSLATE_ADDRESS_ROUTINE64): WINBOOL {.winapi, stdcall, dynlib: "dbghelp", importc.}
-    var stack: STACKFRAME64
-    stack.AddrPC.Offset    = context.Rip
-    stack.AddrPC.Mode      = addrModeFlat
-    stack.AddrStack.Offset = context.Rsp
-    stack.AddrStack.Mode   = addrModeFlat
-    stack.AddrFrame.Offset = context.Rbp
-    stack.AddrFrame.Mode   = addrModeFlat
-    stack.Virtual          = true
+    var prevFun = ""
 
-    echo "---"
-    print stack.AddrPC.Offset.toHex, stack.AddrStack.Offset.toHex, stack.AddrFrame.Offset.toHex
-    var stackPCs: seq[uint64]
-    stackPCs.add(context.Rip.uint64)
-    while true:
-      let stackRes = StackWalk64(
-        IMAGE_FILE_MACHINE_AMD64,
-        processHandle,
-        threadHandle,
-        stack.addr,
-        context.addr,
-        nil,
-        SymFunctionTableAccess64,
-        SymGetModuleBase64,
-        nil
-      )
-      stackPCs.add(stack.AddrPC.Offset.uint64)
-      print stack.AddrPC.Offset.toHex, stack.AddrStack.Offset.toHex, stack.AddrFrame.Offset.toHex
-      if stackRes == 0:
-        break
+    # # ---------------------------------------
+    block:
+      var stackSize = 512 * 10
+      var stack = newString(stackSize)
+      var bytesRead: SIZE_T
+      let startAddress = context.Rsp
+      ReadProcessMemory(
+        hProcess = processHandle,
+        lpBaseAddress = cast[LPCVOID](startAddress),
+        lpBuffer = cast[LPCVOID](stack[0].addr),
+        nSize = stackSize,
+        lpNumberOfBytesRead = bytesRead.addr)
+      doAssert bytesRead == stackSize
 
+      # for i in 0 ..< stackSize:
+      #   #let at = cast[ptr[char]](context.Rsp + i - 16)
+      #   let at = cast[ptr[char]](context.Rsp + i)
+      #   stack[i] = at[]
+      #echo hexPrint(stack, context.Rsp.int + 8 - stackSize)
+      var i = 0
+      print "---"
+      let dl = dumpLine.addressToDumpLine(context.Rip.uint64)
+      prevFun = dl.text.split(" @ ")[0]
+      print prevFun
+      while i + 8 < stack.len:
+        let value = stack.readUInt64(i)
+        let address = startAddress + i
+        #print address.toHex(), value.toHex()
+        let dl = dumpLine.addressToDumpLine(value)
+        if dl.text != "":
+          let thisFun = dl.text.split(" @ ")[0]
+          let canCall = prevFun in callGraph[thisFun]
+          #print thisFun, callGraph[thisFun]
+          #print "can", thisFun, "call", prevFun, "?", canCall
+          #print dl
+          if canCall:
+            prevFun = thisFun
+            print thisFun
+          else:
+            discard
+            #print "skip"
+
+        if "stdlib_ioInit000" in dl.text:
+          break
+        # if startAddress.uint64 <= value and value <= (startAddress + stackSize).uint64:
+        #   print "^ points to stack"
+          #i = value.int - startAddress.int
+        # if address == context.Rsp:
+        #   print "^ RSP ^^^^^^^^^"
+        i += 8
+
+    # ---------------------------------------
+    # block:
+    #   # proc StackWalk64*(MachineType: DWORD, hProcess: HANDLE, hThread: HANDLE, StackFrame: LPSTACKFRAME64, ContextRecord: PVOID, ReadMemoryRoutine: PREAD_PROCESS_MEMORY_ROUTINE64, FunctionTableAccessRoutine: PFUNCTION_TABLE_ACCESS_ROUTINE64, GetModuleBaseRoutine: PGET_MODULE_BASE_ROUTINE64, TranslateAddress: PTRANSLATE_ADDRESS_ROUTINE64): WINBOOL {.winapi, stdcall, dynlib: "dbghelp", importc.}
+    #   var stack: STACKFRAME64
+    #   #var stack = cast[ptr[STACKFRAME64]](alloc(sizeof(STACKFRAME64)))
+
+    #   stack.AddrPC.Offset    = context.Rip
+    #   stack.AddrPC.Mode      = addrModeFlat
+    #   stack.AddrStack.Offset = context.Rsp
+    #   stack.AddrStack.Mode   = addrModeFlat
+    #   stack.AddrFrame.Offset = context.Rbp  # This value is not always used.
+    #   stack.AddrFrame.Mode   = addrModeFlat
+    #   stack.Virtual          = true
+
+    #   echo "---"
+    #   print stack.AddrPC.Offset.toHex, stack.AddrStack.Offset.toHex, stack.AddrFrame.Offset.toHex
+
+    #   while true:
+    #     SetLastError(0)
+    #     let stackRes = StackWalk64(
+    #       IMAGE_FILE_MACHINE_AMD64,
+    #       processHandle,
+    #       threadHandle,
+    #       stack,
+    #       context.addr,
+    #       nil,
+    #       SymFunctionTableAccess64,
+    #       SymGetModuleBase64,
+    #       nil
+    #     )
+
+    #     print stackRes, stack.AddrPC.Offset.toHex, stack.AddrStack.Offset.toHex, stack.AddrFrame.Offset.toHex
+
+    #     if stackRes == 0:
+    #       break
 
     ResumeThread(threadHandle)
     if context.Rip notin cpuHotAddresses:
@@ -166,15 +257,15 @@ proc sample(
       cpuHotAddresses[context.Rip] += 1
     inc cpuSamples
 
-    if stackPCs notin cpuHotStacks:
-      cpuHotStacks[stackPCs] = 1
-    else:
-      cpuHotStacks[stackPCs] += 1
+    # if stackPCs notin cpuHotStacks:
+    #   cpuHotStacks[stackPCs] = 1
+    # else:
+    #   cpuHotStacks[stackPCs] += 1
 
-proc addressToDumpLine(dumpLines: seq[DumpLine], address: uint64): DumpLine =
-  for line in dumpLines:
-    if line.address >= address and address <= line.addressEnd:
-      return line
+    CloseHandle(threadHandle)
+    CloseHandle(processHandle)
+
+
 
 proc dumpScan(
   dumpLines: seq[DumpLine],
@@ -219,6 +310,9 @@ proc hottie(
     echo "See hottie --help for more details"
 
   for exePath in paths:
+    let dumpLine = parseDumpLines(exePath, Regions)
+    let callGraph = parseCallGraph()
+
     var
       p = startProcess(exePath, options={poParentStreams})
       pid = p.processID()
@@ -229,7 +323,7 @@ proc hottie(
       cpuHotStacks = Table[seq[uint64], int]()
 
     while p.running:
-      sample(cpuSamples, cpuHotAddresses, cpuHotStacks, pid, threadIds)
+      sample(cpuSamples, cpuHotAddresses, cpuHotStacks, pid, threadIds, dumpLine, callGraph)
       for j in 0 .. 1_000_000:
         g += j
       sleep(10)
@@ -237,25 +331,27 @@ proc hottie(
       exitTime = epochTime()
     p.close()
 
-    let dumpLines = dumpLines(exePath, Addresses)
-    for stack, count in cpuHotStacks:
-      print "--"
-      for address in stack:
-        let dl = dumpLines.addressToDumpLine(address)
-        print address, dl.text
+    # for stack, count in cpuHotStacks:
+    #   print "--"
+    #   for address in stack:
+    #     #print address
+    #     let dl = dumpLineArr.addressToDumpLine(address)
+    #     #print dl
+    #     #if dl.text != "":
+    #     print address, dl.text
 
     quit()
 
     let samplesPerSecond = (exitTime - startTime) / cpuSamples.float64
 
     if addresses:
-      dumpScan(dumpLines(exePath, Addresses), cpuHotAddresses, samplesPerSecond)
+      dumpScan(parseDumpLines(exePath, Addresses), cpuHotAddresses, samplesPerSecond)
     if procedures:
-      dumpScan(dumpLines(exePath, Procs), cpuHotAddresses, samplesPerSecond)
+      dumpScan(parseDumpLines(exePath, Procs), cpuHotAddresses, samplesPerSecond)
     if regions:
-      dumpScan(dumpLines(exePath, Regions), cpuHotAddresses, samplesPerSecond)
+      dumpScan(parseDumpLines(exePath, Regions), cpuHotAddresses, samplesPerSecond)
     if lines or not(addresses or procedures or regions):
-      dumpScan(dumpLines(exePath, Lines), cpuHotAddresses, samplesPerSecond)
+      dumpScan(parseDumpLines(exePath, Lines), cpuHotAddresses, samplesPerSecond)
 
 when isMainModule:
   dispatch(
