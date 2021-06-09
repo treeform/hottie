@@ -18,10 +18,38 @@ type
     addressEnd: uint64
     text: string
 
-proc dumpLines(exePath: string, rollUp: RollUpKind): seq[DumpLine] =
-  let (output, code) = execCmdEx("objdump -dl " & exePath)
-  writeFile("dump.txt", output)
+  CallGraph = Table[string, TableRef[string, int]]
 
+proc runObjDump(exePath: string) =
+  # Run object dump if the dump file does not exist, is old or of different exe.
+  if not fileExists("dump.txt") or
+    getLastModificationTime("dump.txt") < getLastModificationTime(exePath) or
+    readFile("dump.txt").split(":", 1)[0].strip() != exePath:
+      echo "Running objdump..."
+      let (output, code) = execCmdEx("objdump -dl " & exePath)
+      writeFile("dump.txt", output)
+
+proc parseCallGraph(): CallGraph =
+  let output = readFile("dump.txt")
+  var lines = output.split("\n")
+  var regionName = ""
+  for num, line in lines:
+    if '<' in line and ">:" in line:
+      let
+        arr = line.split(" ", 1)
+      var
+        name = arr[1]
+      if name != "":
+        name = name.strip()[1..^3]
+      regionName = name
+      result[regionName] = newTable[string, int]()
+    if line.endsWith(">") and ("#" in line or "callq" in line):
+      let name = line.split("<",1)[1][0..^2]
+      if not name.startsWith(".rdata"):
+        result[regionName][name] = 1
+
+proc parseDumpLines(rollUp: RollUpKind): seq[DumpLine] =
+  let output = readFile("dump.txt")
   var lines = output.split("\n")
   for num, line in lines:
     proc dumpLink(): string =
@@ -34,7 +62,7 @@ proc dumpLines(exePath: string, rollUp: RollUpKind): seq[DumpLine] =
       var
         name = arr[1]
       if name != "":
-        name = name.strip()[1..^3].split("__")[0]
+        name = name.strip()[1..^3]#.split("__")[0]
       if rollUp == Regions:
         result.add DumpLine(
           kind: dlFunction,
@@ -100,15 +128,25 @@ proc getThreadIds(pid: int): seq[int] =
       valid = Thread32Next(h, te.addr)
     CloseHandle(h)
 
+proc addressToDumpLine(dumpLines: seq[DumpLine], address: uint64): DumpLine =
+  for line in dumpLines:
+    if line.address <= address and address <= line.addressEnd:
+      return line
+
 proc sample(
   cpuSamples: var int,
   cpuHotAddresses: var Table[DWORD64, int],
+  cpuHotStacks: var Table[string, int],
   pid: int,
-  threadIds: seq[int]
+  threadIds: seq[int],
+  dumpLine: seq[DumpLine],
+  callGraph: CallGraph,
+  stacks: bool
 ) =
   #for threadId in threadIds:
   block:
     let threadId = threadIds[0]
+    var processHandle = OpenProcess(PROCESS_ALL_ACCESS, false, pid.DWORD)
     var threadHandle = OpenThread(
       THREAD_ALL_ACCESS,
       false,
@@ -116,29 +154,89 @@ proc sample(
     )
 
     var context: CONTEXT
-    context.ContextFlags = CONTEXT_CONTROL
+    context.ContextFlags = CONTEXT_ALL
 
     SuspendThread(threadHandle)
     GetThreadContext(
       threadHandle,
       context.addr
     )
+    var stackTrace: string
+    if stacks:
+      var prevFun = ""
+      block:
+        var bytesRead: SIZE_T
+        let startAddress = context.Rsp
+        var i = 0
+        let dl = dumpLine.addressToDumpLine(context.Rip.uint64)
+        prevFun = dl.text.split(" @ ")[0]
+        stackTrace.add prevFun.split("__", 1)[0]
+        stackTrace.add "<"
+        while i < 10_000:
+          var value: uint64
+          ReadProcessMemory(
+            hProcess = processHandle,
+            lpBaseAddress = cast[LPCVOID](startAddress + i),
+            lpBuffer = cast[LPCVOID](value.addr),
+            nSize = 8,
+            lpNumberOfBytesRead = bytesRead.addr)
+          if bytesRead != 8:
+            break
+          let dl = dumpLine.addressToDumpLine(value)
+          if "stdlib_ioInit000" in dl.text or "NimMainModule" in dl.text:
+            break
+          if dl.text != "":
+            let thisFun = dl.text.split(" @ ")[0]
+            let canCall = prevFun in callGraph[thisFun]
+            if canCall:
+              if prevFun == thisFun:
+                if not stackTrace.endsWith("*"):
+                  stackTrace[^1] = '*'
+              else:
+                prevFun = thisFun
+                stackTrace.add thisFun.split("__", 1)[0]
+                stackTrace.add "<"
+          i += 8
+
     ResumeThread(threadHandle)
+
     if context.Rip notin cpuHotAddresses:
       cpuHotAddresses[context.Rip] = 1
     else:
       cpuHotAddresses[context.Rip] += 1
     inc cpuSamples
 
-proc addressToDumpLine(dumpLines: seq[DumpLine], address: uint64): DumpLine =
-  for line in dumpLines:
-    if line.address >= address and address <= line.addressEnd:
-      return line
+    if stacks:
+      if stackTrace notin cpuHotStacks:
+        cpuHotStacks[stackTrace] = 1
+      else:
+        cpuHotStacks[stackTrace] += 1
+
+    CloseHandle(threadHandle)
+    CloseHandle(processHandle)
+
+proc dumpTable(
+  cpuHotPathsArr: var seq[(string, int)],
+  samplesPerSecond: float64,
+  cpuSamples: int,
+  numLines: int
+) =
+  cpuHotPathsArr.sort proc(a, b: (string, int)): int = b[1] - a[1]
+  echo " samples           time   percent what"
+  for p in cpuHotPathsArr[0 ..< min(cpuHotPathsArr.len, numLines)]:
+    let
+      samples = p[1]
+      time = (samples.float64 / samplesPerSecond) * 1000
+      per = samples.float64 / cpuSamples.float64 * 100
+      text = p[0]
+    echo strformat.`&`("{p[1]:8} {time:12.3f}ms {per:8.3f}% {text}")
 
 proc dumpScan(
   dumpLines: seq[DumpLine],
   cpuHotAddresses: Table[DWORD64, int],
-  samplesPerSecond: float64
+  samplesPerSecond: float64,
+  cpuSamples: int,
+  numLines: int
 ) =
   var cpuHotPaths: Table[string, int]
   for address, count in cpuHotAddresses:
@@ -147,23 +245,29 @@ proc dumpScan(
       cpuHotPaths[dumpLine.text] = count
     else:
       cpuHotPaths[dumpLine.text] += count
-
   var cpuHotPathsArr = newSeq[(string, int)]()
   for k, v in cpuHotPaths:
     cpuHotPathsArr.add((k, v))
-  cpuHotPathsArr.sort proc(a, b: (string, int)): int = b[1] - a[1]
+  dumpTable(cpuHotPathsArr, samplesPerSecond, cpuSamples, numLines)
 
-  echo " samples       time  path"
-  for p in cpuHotPathsArr[0 ..< min(cpuHotPathsArr.len, 30)]:
-    let
-      time = (p[1].float64 * samplesPerSecond) * 1000
-      text = p[0]
-    echo strformat.`&`("{p[1]:8} {time:8.3}ms  {text}")
+proc dumpStacks(
+  cpuHotStacks: Table[string, int],
+  samplesPerSecond: float,
+  cpuSamples: int,
+  numLines: int
+) =
+  var cpuHotPathsArr = newSeq[(string, int)]()
+  for k, v in cpuHotStacks:
+    cpuHotPathsArr.add((k, v))
+  dumpTable(cpuHotPathsArr, samplesPerSecond, cpuSamples, numLines)
 
-var g: int
+var spinVar: uint64
 
 proc hottie(
   workingDir: string = "",
+  rate = 1000,
+  numLines = 30,
+  stacks = false,
   addresses = false,
   lines = false,
   procedures = false,
@@ -178,6 +282,12 @@ proc hottie(
     echo "See hottie --help for more details"
 
   for exePath in paths:
+    runObjDump(exePath)
+    var dumpLine: seq[DumpLine]
+    var callGraph: CallGraph
+    if stacks:
+      dumpLine = parseDumpLines(Regions)
+      callGraph = parseCallGraph()
     var
       p = startProcess(exePath, options={poParentStreams})
       pid = p.processID()
@@ -185,34 +295,45 @@ proc hottie(
       startTime = epochTime()
       cpuSamples: int
       cpuHotAddresses = Table[DWORD64, int]()
+      cpuHotStacks = Table[string, int]()
 
     while p.running:
-      sample(cpuSamples, cpuHotAddresses, pid, threadIds)
-      for j in 0 .. 1_000_000:
-        g += j
-      sleep(0)
-    var
+      let startSample = epochTime()
+      sample(cpuSamples, cpuHotAddresses, cpuHotStacks, pid, threadIds, dumpLine, callGraph, stacks)
+      # Wait to approach the user supplied sampling rate.
+      while startSample + 1/rate.float64 * 0.8 > epochTime():
+        spinVar += 1
+
+    let
       exitTime = epochTime()
+      totalTime = exitTime - startTime
     p.close()
 
-    let samplesPerSecond = (exitTime - startTime) / cpuSamples.float64
+    let samplesPerSecond = cpuSamples.float64 / (totalTime)
 
-    if addresses:
-      dumpScan(dumpLines(exePath, Addresses), cpuHotAddresses, samplesPerSecond)
-    if procedures:
-      dumpScan(dumpLines(exePath, Procs), cpuHotAddresses, samplesPerSecond)
-    if regions:
-      dumpScan(dumpLines(exePath, Regions), cpuHotAddresses, samplesPerSecond)
-    if lines or not(addresses or procedures or regions):
-      dumpScan(dumpLines(exePath, Lines), cpuHotAddresses, samplesPerSecond)
+    if stacks:
+      dumpStacks(cpuHotStacks, samplesPerSecond, cpuSamples, numLines)
+    elif addresses:
+      dumpScan(parseDumpLines(Addresses), cpuHotAddresses, samplesPerSecond, cpuSamples, numLines)
+    elif procedures:
+      dumpScan(parseDumpLines(Procs), cpuHotAddresses, samplesPerSecond, cpuSamples, numLines)
+    elif regions:
+      dumpScan(parseDumpLines(Regions), cpuHotAddresses, samplesPerSecond, cpuSamples, numLines)
+    else: #lines:
+      dumpScan(parseDumpLines(Lines), cpuHotAddresses, samplesPerSecond, cpuSamples, numLines)
+
+    echo strformat.`&`"Samples per second: {samplesPerSecond:.1f} totalTime: {totalTime:.3f}ms"
 
 when isMainModule:
   dispatch(
     hottie,
     help = {
+      "rate": "target rate per second (faster not always possible)",
+      "numLines": "number of lines to display",
+      "stacks": "profile by stack traces",
       "addresses": "profile by assembly instruction addresses",
       "lines": "profile by source lines (default)",
       "procedures": "profile by inlined and regular procedure definitions",
-      "regions": "profile by regular procedure definitions only"
+      "regions": "profile by 'C' stack framed procedure definitions only"
     }
   )
