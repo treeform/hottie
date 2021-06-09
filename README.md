@@ -1,6 +1,6 @@
 <img src="docs/banner.png">
 
-# A Sampling profiler for Nim that finds 🌶️hot🌶️ code.
+# A Sampling profiler for Nim that finds 🌶️ code.
 
 Currently only works on Windows with GCC (mingw).
 
