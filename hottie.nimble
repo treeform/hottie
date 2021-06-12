@@ -9,3 +9,4 @@ bin = @["hottie"]
 requires "nim >= 1.4.6"
 requires "winim >= 3.6.0"
 requires "cligen >= 1.3.2"
+requires "ptrace >= 0.0.4"
