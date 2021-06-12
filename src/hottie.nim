@@ -1,5 +1,5 @@
 import algorithm, cligen, hottie/common, hottie/parser, os, osproc, strformat,
-    strutils, tables, times, winim
+    strutils, tables, times
 
 when defined(windows):
   import hottie/windows
@@ -26,7 +26,7 @@ proc dumpTable(
 
 proc dumpScan(
   dumpLines: seq[DumpLine],
-  cpuHotAddresses: Table[int64, int],
+  cpuHotAddresses: Table[uint64, int],
   samplesPerSecond: float64,
   cpuSamples: int,
   numLines: int
@@ -84,7 +84,7 @@ proc hottie(
       threadIds = getThreadIds(pid)
       startTime = epochTime()
       cpuSamples: int
-      cpuHotAddresses = Table[DWORD64, int]()
+      cpuHotAddresses = Table[uint64, int]()
       cpuHotStacks = Table[string, int]()
 
     while p.running:

@@ -14,7 +14,7 @@ proc getThreadIds*(pid: int): seq[int] =
 
 proc sample*(
   cpuSamples: var int,
-  cpuHotAddresses: var Table[DWORD64, int],
+  cpuHotAddresses: var Table[uint64, int],
   cpuHotStacks: var Table[string, int],
   pid: int,
   threadIds: seq[int],
@@ -78,10 +78,10 @@ proc sample*(
 
     ResumeThread(threadHandle)
 
-    if context.Rip notin cpuHotAddresses:
-      cpuHotAddresses[context.Rip] = 1
+    if context.Rip.uint64 notin cpuHotAddresses:
+      cpuHotAddresses[context.Rip.uint64] = 1
     else:
-      cpuHotAddresses[context.Rip] += 1
+      cpuHotAddresses[context.Rip.uint64] += 1
     inc cpuSamples
 
     if stacks:
