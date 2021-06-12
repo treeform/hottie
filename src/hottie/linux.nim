@@ -1,6 +1,5 @@
-import std/[tables, strformat, os, strutils, posix, parseutils]
-import ptrace, common
-export common
+import tables, strformat, os, strutils, posix, parseutils, ptrace, common
+
 var startOffsets: Table[int, uint64]
 
 proc fetchStackAddrs(pid: int) =
@@ -29,8 +28,7 @@ proc sample*(
   cpuHotStacks: var Table[string, int],
   pid: int,
   threadIds: seq[int],
-  dumpLine: seq[DumpLine],
-  callGraph: CallGraph,
+  dumpFile: DumpFile,
   stacks: bool
 ) =
   let threadId = threadIds[0].Pid
@@ -71,9 +69,9 @@ proc sample*(
 
   detach(threadId)
   let rip = regs.rip.toRel(threadId).int
-  
+
   if cpuHotAddresses.hasKeyOrPut(rip, 1):
-    inc cpuHotAddresses[rip] 
+    inc cpuHotAddresses[rip]
   inc cpuSamples
   if stacks:
     if stackTrace notin cpuHotStacks:

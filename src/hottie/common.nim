@@ -6,20 +6,23 @@ type
     Addresses
     Lines
     Procs
-    Regions
-
-  DumpLineKind* = enum
-    dlAsm
-    dlFunction
-    dlPath
+    Frames
 
   DumpLine* = object
-    kind*: DumpLineKind
     address*: uint64
     addressEnd*: uint64
     text*: string
 
   CallGraph* = Table[string, TableRef[string, int]]
+
+  DumpFile* = ref object
+    exeName*: string
+    exeFormat*: string
+    asmLines*: seq[DumpLine]
+    nimLines*: seq[DumpLine]
+    procs*: seq[DumpLine]
+    frames*: seq[DumpLine]
+    callGraph*: CallGraph
 
 proc addressToDumpLine*(dumpLines: seq[DumpLine], address: uint64): DumpLine =
   for line in dumpLines:
