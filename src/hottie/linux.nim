@@ -24,7 +24,7 @@ proc toRel(address: uint64, pid: int): uint64 = address - startOffsets[pid]
 
 proc sample*(
   cpuSamples: var int,
-  cpuHotAddresses: var Table[int64, int],
+  cpuHotAddresses: var Table[uint64, int],
   cpuHotStacks: var Table[string, int],
   pid: int,
   threadIds: seq[int],
@@ -68,7 +68,7 @@ proc sample*(
 
 
   detach(threadId)
-  let rip = regs.rip.toRel(threadId).int
+  let rip = regs.rip.uint64 - startOffsets[threadId].uint64
 
   if cpuHotAddresses.hasKeyOrPut(rip, 1):
     inc cpuHotAddresses[rip]
