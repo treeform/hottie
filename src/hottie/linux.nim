@@ -1,4 +1,4 @@
-import tables, strformat, os, strutils, posix, parseutils, ptrace, common
+import common, os, parseutils, posix, ptrace, strformat, strutils, tables
 
 var startOffsets: Table[int, uint64]
 

@@ -1,4 +1,4 @@
-import common, winim, strutils
+import common, strutils, winim
 
 proc getThreadIds*(pid: int): seq[int] =
   var h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, DWORD(pid))

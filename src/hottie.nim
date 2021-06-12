@@ -1,5 +1,5 @@
-import winim, os, osproc, strformat, tables, algorithm, strutils, times, cligen,
-    hottie/parser, hottie/common
+import algorithm, cligen, hottie/common, hottie/parser, os, osproc, strformat,
+    strutils, tables, times, winim
 
 when defined(windows):
   import hottie/windows
@@ -79,7 +79,7 @@ proc hottie(
     var dumpFile = getDumpFile(exePath)
 
     var
-      p = startProcess(exePath, options={poParentStreams})
+      p = startProcess(exePath, options = {poParentStreams})
       pid = p.processID()
       threadIds = getThreadIds(pid)
       startTime = epochTime()
@@ -89,7 +89,15 @@ proc hottie(
 
     while p.running:
       let startSample = epochTime()
-      sample(cpuSamples, cpuHotAddresses, cpuHotStacks, pid, threadIds, dumpFile, stacks)
+      sample(
+        cpuSamples,
+        cpuHotAddresses,
+        cpuHotStacks,
+        pid,
+        threadIds,
+        dumpFile,
+        stacks
+      )
       # Wait to approach the user supplied sampling rate.
       while startSample + 1/rate.float64 * 0.8 > epochTime():
         spinVar += 1
