@@ -1,6 +1,5 @@
-import std/[tables, strformat, os, strutils, posix, parseutils]
-import ptrace, common
-export common
+import common, os, parseutils, posix, ptrace, strformat, strutils, tables
+
 var startOffsets: Table[int, uint64]
 
 proc fetchStackAddrs(pid: int) =
@@ -25,12 +24,11 @@ proc toRel(address: uint64, pid: int): uint64 = address - startOffsets[pid]
 
 proc sample*(
   cpuSamples: var int,
-  cpuHotAddresses: var Table[int64, int],
+  cpuHotAddresses: var Table[uint64, int],
   cpuHotStacks: var Table[string, int],
   pid: int,
   threadIds: seq[int],
-  dumpLine: seq[DumpLine],
-  callGraph: CallGraph,
+  dumpFile: DumpFile,
   stacks: bool
 ) =
   let threadId = threadIds[0].Pid
@@ -46,18 +44,18 @@ proc sample*(
     block:
       let startAddress = regs.rsp
       var i = 0
-      let dl = dumpLine.addressToDumpLine(regs.rip.toRel(threadId))
+      let dl = dumpFile.frames.addressToDumpLine(regs.rip.toRel(threadId))
       prevFun = dl.text.split(" @ ")[0]
       stackTrace.add prevFun.split("__", 1)[0]
       stackTrace.add "<"
       while i < 10_000:
         var value = threadId.getData((startAddress + i.culong).clong).uint64
-        let dl = dumpLine.addressToDumpLine(value.toRel(threadId))
+        let dl = dumpFile.frames.addressToDumpLine(value.toRel(threadId))
         if "stdlib_ioInit000" in dl.text or "NimMainModule" in dl.text:
           break
         if dl.text != "":
           let thisFun = dl.text.split(" @ ")[0]
-          let canCall = prevFun in callGraph[thisFun]
+          let canCall = prevFun in dumpFile.callGraph[thisFun]
           if canCall:
             if prevFun == thisFun:
               if not stackTrace.endsWith("*"):
@@ -70,10 +68,10 @@ proc sample*(
 
 
   detach(threadId)
-  let rip = regs.rip.toRel(threadId).int
-  
+  let rip = regs.rip.uint64 - startOffsets[threadId].uint64
+
   if cpuHotAddresses.hasKeyOrPut(rip, 1):
-    inc cpuHotAddresses[rip] 
+    inc cpuHotAddresses[rip]
   inc cpuSamples
   if stacks:
     if stackTrace notin cpuHotStacks:

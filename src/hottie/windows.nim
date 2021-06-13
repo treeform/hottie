@@ -1,6 +1,5 @@
-import common, winim
-import std/[strutils]
-export common
+import common, strutils, winim
+
 proc getThreadIds*(pid: int): seq[int] =
   var h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, DWORD(pid))
   if h != INVALID_HANDLE_VALUE:
@@ -15,12 +14,11 @@ proc getThreadIds*(pid: int): seq[int] =
 
 proc sample*(
   cpuSamples: var int,
-  cpuHotAddresses: var Table[DWORD64, int],
+  cpuHotAddresses: var Table[uint64, int],
   cpuHotStacks: var Table[string, int],
   pid: int,
   threadIds: seq[int],
-  dumpLine: seq[DumpLine],
-  callGraph: CallGraph,
+  dumpFile: DumpFile,
   stacks: bool
 ) =
   #for threadId in threadIds:
@@ -48,7 +46,7 @@ proc sample*(
         var bytesRead: SIZE_T
         let startAddress = context.Rsp
         var i = 0
-        let dl = dumpLine.addressToDumpLine(context.Rip.uint64)
+        let dl = dumpFile.frames.addressToDumpLine(context.Rip.uint64)
         prevFun = dl.text.split(" @ ")[0]
         stackTrace.add prevFun.split("__", 1)[0]
         stackTrace.add "<"
@@ -62,12 +60,12 @@ proc sample*(
             lpNumberOfBytesRead = bytesRead.addr)
           if bytesRead != 8:
             break
-          let dl = dumpLine.addressToDumpLine(value)
+          let dl = dumpFile.frames.addressToDumpLine(value)
           if "stdlib_ioInit000" in dl.text or "NimMainModule" in dl.text:
             break
           if dl.text != "":
             let thisFun = dl.text.split(" @ ")[0]
-            let canCall = prevFun in callGraph[thisFun]
+            let canCall = prevFun in dumpFile.callGraph[thisFun]
             if canCall:
               if prevFun == thisFun:
                 if not stackTrace.endsWith("*"):
@@ -80,10 +78,10 @@ proc sample*(
 
     ResumeThread(threadHandle)
 
-    if context.Rip notin cpuHotAddresses:
-      cpuHotAddresses[context.Rip] = 1
+    if context.Rip.uint64 notin cpuHotAddresses:
+      cpuHotAddresses[context.Rip.uint64] = 1
     else:
-      cpuHotAddresses[context.Rip] += 1
+      cpuHotAddresses[context.Rip.uint64] += 1
     inc cpuSamples
 
     if stacks:
