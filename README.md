@@ -4,6 +4,8 @@
 
 Currently only works on Windows with GCC (mingw).
 
+Supports Linux using GCC(`--passL:"-no-pie"` is required) and Clang.
+
 # How to use:
 
 First compile your exe with `--debugger:native` to get the line numbers, and probably `-d:release` or `-d:danger` because you are profiling:

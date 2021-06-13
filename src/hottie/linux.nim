@@ -1,31 +1,17 @@
-import common, os, parseutils, posix, ptrace, strformat, strutils, tables
+import common, os, posix, ptrace, strformat, strutils, tables
 
-var startOffsets: Table[int, uint64]
-
-proc fetchStackAddrs(pid: int) =
-  ## Gets offsets from start of program
-  for line in lines(fmt"/proc/{pid}/maps"):
-    try:
-      var stack: uint64
-      discard parseHex(line, stack)
-      startOffsets[pid] = stack
-    except: discard
-    break
 
 proc getThreadIds*(pid: int): seq[int] =
   for x in walkdir(fmt"/proc/{pid}/task", true):
     try:
       let tid = parseInt(x.path)
       result.add tid
-      fetchStackAddrs(tid)
     except: discard
-
-proc toRel(address: uint64, pid: int): uint64 = address - startOffsets[pid]
 
 proc sample*(
   cpuSamples: var int,
-  cpuHotAddresses: var Table[uint64, int],
-  cpuHotStacks: var Table[string, int],
+  cpuHotAddresses: var CountTable[uint64],
+  cpuHotStacks: var CountTable[string],
   pid: int,
   threadIds: seq[int],
   dumpFile: DumpFile,
@@ -44,13 +30,13 @@ proc sample*(
     block:
       let startAddress = regs.rsp
       var i = 0
-      let dl = dumpFile.frames.addressToDumpLine(regs.rip.toRel(threadId))
+      let dl = dumpFile.frames.addressToDumpLine(regs.rip)
       prevFun = dl.text.split(" @ ")[0]
       stackTrace.add prevFun.split("__", 1)[0]
       stackTrace.add "<"
       while i < 10_000:
         var value = threadId.getData((startAddress + i.culong).clong).uint64
-        let dl = dumpFile.frames.addressToDumpLine(value.toRel(threadId))
+        let dl = dumpFile.frames.addressToDumpLine(value)
         if "stdlib_ioInit000" in dl.text or "NimMainModule" in dl.text:
           break
         if dl.text != "":
@@ -68,13 +54,9 @@ proc sample*(
 
 
   detach(threadId)
-  let rip = regs.rip.uint64 - startOffsets[threadId].uint64
+  let rip = regs.rip.uint64 
 
-  if cpuHotAddresses.hasKeyOrPut(rip, 1):
-    inc cpuHotAddresses[rip]
+  cpuHotAddresses.inc(rip)
   inc cpuSamples
   if stacks:
-    if stackTrace notin cpuHotStacks:
-      cpuHotStacks[stackTrace] = 1
-    else:
-      cpuHotStacks[stackTrace] += 1
+   cpuHotStacks.inc(stackTrace)
