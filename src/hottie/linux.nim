@@ -55,7 +55,7 @@ proc sample*(
           break
         if dl.text != "":
           let thisFun = dl.text.split(" @ ")[0]
-          let canCall = prevFun in callGraph[thisFun]
+          let canCall = prevFun in dumpFile.callGraph[thisFun]
           if canCall:
             if prevFun == thisFun:
               if not stackTrace.endsWith("*"):
