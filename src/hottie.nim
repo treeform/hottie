@@ -26,25 +26,22 @@ proc dumpTable(
 
 proc dumpScan(
   dumpLines: seq[DumpLine],
-  cpuHotAddresses: Table[uint64, int],
+  cpuHotAddresses: CountTable[uint64],
   samplesPerSecond: float64,
   cpuSamples: int,
   numLines: int
 ) =
-  var cpuHotPaths: Table[string, int]
+  var cpuHotPaths: CountTable[string]
   for address, count in cpuHotAddresses:
     let dumpLine = dumpLines.addressToDumpLine(address.uint64)
-    if dumpLine.text notin cpuHotPaths:
-      cpuHotPaths[dumpLine.text] = count
-    else:
-      cpuHotPaths[dumpLine.text] += count
+    cpuHotPaths.inc(dumpLine.text, count)
   var cpuHotPathsArr = newSeq[(string, int)]()
   for k, v in cpuHotPaths:
     cpuHotPathsArr.add((k, v))
   dumpTable(cpuHotPathsArr, samplesPerSecond, cpuSamples, numLines)
 
 proc dumpStacks(
-  cpuHotStacks: Table[string, int],
+  cpuHotStacks: CountTable[string],
   samplesPerSecond: float,
   cpuSamples: int,
   numLines: int
@@ -84,8 +81,8 @@ proc hottie(
       threadIds = getThreadIds(pid)
       startTime = epochTime()
       cpuSamples: int
-      cpuHotAddresses = Table[uint64, int]()
-      cpuHotStacks = Table[string, int]()
+      cpuHotAddresses = CountTable[uint64]()
+      cpuHotStacks = CountTable[string]()
 
 
     while true:
