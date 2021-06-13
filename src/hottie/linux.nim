@@ -44,13 +44,13 @@ proc sample*(
     block:
       let startAddress = regs.rsp
       var i = 0
-      let dl = dumpLine.addressToDumpLine(regs.rip.toRel(threadId))
+      let dl = dumpFile.frames.addressToDumpLine(regs.rip.toRel(threadId))
       prevFun = dl.text.split(" @ ")[0]
       stackTrace.add prevFun.split("__", 1)[0]
       stackTrace.add "<"
       while i < 10_000:
         var value = threadId.getData((startAddress + i.culong).clong).uint64
-        let dl = dumpLine.addressToDumpLine(value.toRel(threadId))
+        let dl = dumpFile.frames.addressToDumpLine(value.toRel(threadId))
         if "stdlib_ioInit000" in dl.text or "NimMainModule" in dl.text:
           break
         if dl.text != "":
