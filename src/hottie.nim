@@ -87,7 +87,13 @@ proc hottie(
       cpuHotAddresses = Table[uint64, int]()
       cpuHotStacks = Table[string, int]()
 
-    while p.running:
+
+    while true:
+      try:
+        if not p.running:
+          break
+      except:
+        break
       let startSample = epochTime()
       sample(
         cpuSamples,

@@ -5,11 +5,11 @@ proc junk(i: int) =
   junk(i - 1)
 
 proc functionA1() {.extern: "functionA1".} =
-  for i in 0 .. 1_000_000:
+  for i in 0 .. 10_000_000:
     inc k
 
 proc functionA2() {.extern: "functionA2".} =
-  for i in 0 .. 1_000_000:
+  for i in 0 .. 10_000_000:
     inc k
 
 proc functionB() {.extern: "functionB".} =
