@@ -13,7 +13,6 @@ proc getThreadIds*(pid: int): seq[int] =
     CloseHandle(h)
 
 proc sample*(
-  cpuSamples: var int,
   cpuHotAddresses: var CountTable[uint64],
   cpuHotStacks: var CountTable[string],
   pid: int,

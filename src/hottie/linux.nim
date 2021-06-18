@@ -9,7 +9,6 @@ proc getThreadIds*(pid: int): seq[int] =
     except: discard
 
 proc sample*(
-  cpuSamples: var int,
   cpuHotAddresses: var CountTable[uint64],
   cpuHotStacks: var CountTable[string],
   pid: int,
@@ -54,9 +53,8 @@ proc sample*(
 
 
   detach(threadId)
-  let rip = regs.rip.uint64 
+  let rip = regs.rip.uint64
 
   cpuHotAddresses.inc(rip)
-  inc cpuSamples
   if stacks:
    cpuHotStacks.inc(stackTrace)
