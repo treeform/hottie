@@ -26,6 +26,24 @@ type
     callGraph*: CallGraph
 
 proc addressToDumpLine*(dumpLines: seq[DumpLine], address: uint64): DumpLine =
-  for line in dumpLines:
-    if line.address <= address and address <= line.addressEnd:
-      return line
+  ## Convert a memory address to a DumpLine.
+
+  # # linear search
+  # for line in dumpLines:
+  #   if line.address <= address and address <= line.addressEnd:
+  #     return line
+
+  # soft-of binary search:
+  var
+    a = 0
+    b = len(dumpLines) - 1
+    c = 0
+  while a <= b:
+    c = (b + a) div 2
+    if dumpLines[c].addressEnd < address:
+      a = c + 1
+    elif dumpLines[c].address > address:
+      b = c - 1
+    else:
+      return dumpLines[c]
+  return

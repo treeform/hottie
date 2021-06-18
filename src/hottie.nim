@@ -93,7 +93,6 @@ proc hottie(
         break
       let startSample = epochTime()
       sample(
-        cpuSamples,
         cpuHotAddresses,
         cpuHotStacks,
         pid,
@@ -101,6 +100,7 @@ proc hottie(
         dumpFile,
         stacks
       )
+      inc cpuSamples
       # Wait to approach the user supplied sampling rate.
       while startSample + 1/rate.float64 * 0.8 > epochTime():
         spinVar += 1
