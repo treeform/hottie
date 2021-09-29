@@ -2,6 +2,8 @@
 
 # A Sampling profiler for Nim that finds 🌶️ code.
 
+![Github Actions](https://github.com/treeform/hottie/workflows/Github%20Actions/badge.svg)
+
 Currently only works on Windows with GCC (mingw).
 
 Supports Linux using GCC(`--passL:"-no-pie"` is required) and Clang.
