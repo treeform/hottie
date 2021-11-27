@@ -84,26 +84,21 @@ proc hottie(
       cpuHotAddresses = CountTable[uint64]()
       cpuHotStacks = CountTable[string]()
 
-
-    let (output, ret) = execCmdEx("vmmap --wide " & $pid)
-    for line in output.split("\n"):
-      if line =~ re"__TEXT\s*([{0-9}{a-f}]*)-.*":
-        startOffset = parseHexInt(matches[0]).uint64
-        #echo startOffset.toHex()
-        break
-
-    threadIds.add(pid)
+    when defined(macosx):
+      let (output, ret) = execCmdEx("vmmap --wide " & $pid)
+      for line in output.split("\n"):
+        if line =~ re"__TEXT\s*([{0-9}{a-f}]*)-.*":
+          startOffset = parseHexInt(matches[0]).uint64
+          break
+      threadIds.add(pid)
 
     while true:
-      #echo "while true"
-
       try:
         if not p.running:
           break
       except:
         break
 
-      #echo "start sample"
       let startSample = epochTime()
 
       if sample(
@@ -115,14 +110,11 @@ proc hottie(
         stacks
       ):
         break
-      #echo "end sample"
       inc cpuSamples
 
       # Wait to approach the user supplied sampling rate.
       while startSample + 1/rate.float64 * 0.8 > epochTime():
         spinVar += 1
-
-    #echo "exit loop"
 
     let
       exitTime = epochTime()
@@ -130,8 +122,6 @@ proc hottie(
     p.close()
 
     echo "Program ended"
-
-    #echo "p.close"
 
     let samplesPerSecond = cpuSamples.float64 / (totalTime)
 
