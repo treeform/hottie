@@ -1,4 +1,4 @@
-import common, os, posix, ptrace, strformat, strutils, tables
+import common, os, posix, strformat, strutils, tables
 
 # http://os-tres.net/blog/2010/02/17/mac-os-x-and-task-for-pid-mach-call/
 # http://uninformed.org/index.cgi?v=4&a=3&p=14
