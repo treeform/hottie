@@ -98,9 +98,7 @@ proc hottie(
           break
       except:
         break
-
       let startSample = epochTime()
-
       if sample(
         cpuHotAddresses,
         cpuHotStacks,
@@ -111,7 +109,6 @@ proc hottie(
       ):
         break
       inc cpuSamples
-
       # Wait to approach the user supplied sampling rate.
       while startSample + 1/rate.float64 * 0.8 > epochTime():
         spinVar += 1
@@ -138,7 +135,9 @@ proc hottie(
 
     echo strformat.`&`"Samples per second: {samplesPerSecond:.1f} totalTime: {totalTime:.3f}ms"
 
-    quit(0) # Need for some reason on mac?
+    when defined(macosx):
+      # Need for some reason on mac?
+      quit(0)
 
 when isMainModule:
   dispatch(

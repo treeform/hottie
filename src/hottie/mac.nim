@@ -86,6 +86,7 @@ proc sample*(
   dumpFile: DumpFile,
   stacks: bool
 ): bool =
+
   if stacks:
     # TODO add support for stacks
     discard
@@ -110,7 +111,7 @@ proc sample*(
     echo "task_threads() failed with message: ", mach_error_string(err)
     return true
 
-  # echo "start mach_vm_region"
+  # TODO: Figure out how to use vm_region
   # err = mach_vm_region(machPort)
   # echo "done mach_vm_region"
   # if err != 0:
@@ -121,7 +122,6 @@ proc sample*(
   err = thread_get_state(threadList, addr state, addr stateCount);
   if err != 0:
     echo "thread_get_state() failed with message: ", mach_error_string(err)
-    #quit(-1)
     return true
 
   let rip: uint64 = (state.pc - startOffset + 0x100000000.uint64)
