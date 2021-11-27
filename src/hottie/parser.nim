@@ -30,10 +30,14 @@ proc getDumpFile*(exePath: string): DumpFile =
     getLastModificationTime("dump.txt") < getLastModificationTime(exePath) or
     readFile("dump.txt").split(":", 1)[0].strip() != exePath:
     echo "Running objdump..."
-    let (data, code) = execCmdEx("objdump -dl " & exePath)
+
+    var exePath = exePath & ".dSYM/Contents/Resources/DWARF/test3"
+
+    let (data, code) = execCmdEx("/usr/bin/objdump -dl " & exePath)
     output = data
     if code != 0:
-      quit("Failed to run objdump, is it installed and on system path?")
+      echo output
+      quit("Failed to run objdump.")
     writeFile("dump.txt", output)
   else:
     output = readFile("dump.txt")
@@ -59,6 +63,8 @@ proc getDumpFile*(exePath: string): DumpFile =
         address: 0,
         text: name & " @ " & dumpLink()
       )
+    elif line.len == 0:
+      continue
     elif "():" in line:
       # Inline function
       let name = line.split("():")[0].split("__")[0]
@@ -72,7 +78,7 @@ proc getDumpFile*(exePath: string): DumpFile =
         address: 0,
         text: line.normalizedPath,
       )
-    elif line.startsWith("  ") and ":" in line:
+    elif (line.startsWith("  ") or line[0].isDigit) and ":" in line:
       # Assembly instructions.
       let
         arr = line.split(":", 1)
@@ -95,6 +101,8 @@ proc getDumpFile*(exePath: string): DumpFile =
     elif "Dwarf Error" in line:
       continue
     elif "Disassembly of section" in line:
+      continue
+    elif "section" in line:
       continue
     elif "file format" in line:
       continue
