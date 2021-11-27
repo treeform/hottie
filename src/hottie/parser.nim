@@ -31,7 +31,11 @@ proc getDumpFile*(exePath: string): DumpFile =
     readFile("dump.txt").split(":", 1)[0].strip() != exePath:
     echo "Running objdump..."
 
-    var exePath = exePath & ".dSYM/Contents/Resources/DWARF/test3"
+
+    var exePath = exePath
+
+    when defined(macosx):
+      exePath = exePath & ".dSYM/Contents/Resources/DWARF/" & exePath.lastPathPart()
 
     let (data, code) = execCmdEx("/usr/bin/objdump -dl " & exePath)
     output = data
