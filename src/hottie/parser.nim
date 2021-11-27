@@ -37,7 +37,7 @@ proc getDumpFile*(exePath: string): DumpFile =
     when defined(macosx):
       exePath = exePath & ".dSYM/Contents/Resources/DWARF/" & exePath.lastPathPart()
 
-    let (data, code) = execCmdEx("/usr/bin/objdump -dl " & exePath)
+    let (data, code) = execCmdEx("objdump -dl " & exePath)
     output = data
     if code != 0:
       echo output
