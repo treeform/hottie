@@ -74,12 +74,9 @@ proc mach_vm_region(task: cint): cint =
     return err;
   """.}
 
-
 proc getThreadIds*(pid: int): seq[int] =
   ## TODO add multi threaded support
   return
-
-var startOffset*: uint64
 
 proc sample*(
   cpuHotAddresses: var CountTable[uint64],

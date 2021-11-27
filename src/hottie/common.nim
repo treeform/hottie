@@ -25,6 +25,10 @@ type
     frames*: seq[DumpLine]
     callGraph*: CallGraph
 
+var
+  # Used on mac for PIE (Position Independent Executables) to offset addresses.
+  startOffset*: uint64
+
 proc addressToDumpLine*(dumpLines: seq[DumpLine], address: uint64): DumpLine =
   ## Convert a memory address to a DumpLine.
 
