@@ -78,6 +78,11 @@ proc getDumpFile*(exePath: string): DumpFile =
       )
     elif "/" in line:
       # Source code lines
+      var line = line
+      if line.startsWith("; "):
+        line = line[2..^1]
+      if "failed to parse" in line:
+        line = ""
       result.nimLines.add DumpLine(
         address: 0,
         text: line.normalizedPath,
