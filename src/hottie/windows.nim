@@ -19,7 +19,7 @@ proc sample*(
   threadIds: seq[int],
   dumpFile: DumpFile,
   stacks: bool
-) =
+): bool =
   #for threadId in threadIds:
   block:
     let threadId = threadIds[0]
@@ -84,3 +84,5 @@ proc sample*(
 
     CloseHandle(threadHandle)
     CloseHandle(processHandle)
+
+  return true

@@ -1,12 +1,12 @@
 import algorithm, cligen, hottie/common, hottie/parser, os, osproc, strformat,
-    strutils, tables, times
+    strutils, tables, times, re
 
 when defined(windows):
   import hottie/windows
 elif defined(linux):
   import hottie/linux
 else:
-  {.error: "Hottie does not support this OS consider porting it!".}
+  import hottie/mac
 
 proc dumpTable(
   cpuHotPathsArr: var seq[(string, int)],
@@ -84,6 +84,13 @@ proc hottie(
       cpuHotAddresses = CountTable[uint64]()
       cpuHotStacks = CountTable[string]()
 
+    when defined(macosx):
+      let (output, ret) = execCmdEx("vmmap --wide " & $pid)
+      for line in output.split("\n"):
+        if line =~ re"__TEXT\s*([{0-9}{a-f}]*)-.*":
+          startOffset = parseHexInt(matches[0]).uint64
+          break
+      threadIds.add(pid)
 
     while true:
       try:
@@ -92,14 +99,15 @@ proc hottie(
       except:
         break
       let startSample = epochTime()
-      sample(
+      if sample(
         cpuHotAddresses,
         cpuHotStacks,
         pid,
         threadIds,
         dumpFile,
         stacks
-      )
+      ):
+        break
       inc cpuSamples
       # Wait to approach the user supplied sampling rate.
       while startSample + 1/rate.float64 * 0.8 > epochTime():
@@ -109,6 +117,8 @@ proc hottie(
       exitTime = epochTime()
       totalTime = exitTime - startTime
     p.close()
+
+    echo "Program ended"
 
     let samplesPerSecond = cpuSamples.float64 / (totalTime)
 
@@ -124,6 +134,10 @@ proc hottie(
       dumpScan(dumpFile.nimLines, cpuHotAddresses, samplesPerSecond, cpuSamples, numLines)
 
     echo strformat.`&`"Samples per second: {samplesPerSecond:.1f} totalTime: {totalTime:.3f}ms"
+
+    when defined(macosx):
+      # Need for some reason on mac?
+      quit(0)
 
 when isMainModule:
   dispatch(

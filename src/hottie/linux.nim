@@ -1,6 +1,5 @@
 import common, os, posix, ptrace, strformat, strutils, tables
 
-
 proc getThreadIds*(pid: int): seq[int] =
   for x in walkdir(fmt"/proc/{pid}/task", true):
     try:
@@ -15,7 +14,7 @@ proc sample*(
   threadIds: seq[int],
   dumpFile: DumpFile,
   stacks: bool
-) =
+): bool =
   let threadId = threadIds[0].Pid
   var regs: Registers
   attach(threadId)
@@ -51,10 +50,11 @@ proc sample*(
               stackTrace.add "<"
         i += 8
 
-
   detach(threadId)
   let rip = regs.rip.uint64
 
   cpuHotAddresses.inc(rip)
   if stacks:
    cpuHotStacks.inc(stackTrace)
+
+  return true

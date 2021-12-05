@@ -10,3 +10,4 @@ nimcache
 *.ilk
 .*
 dump.txt
+*.dSYM
