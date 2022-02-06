@@ -85,4 +85,4 @@ proc sample*(
     CloseHandle(threadHandle)
     CloseHandle(processHandle)
 
-  return true
+  return false
