@@ -2,7 +2,13 @@
 
 # A Sampling profiler for Nim that finds 🌶️ code.
 
+nimble update dep: winim 3.6.0 -> 3.8.0
+
+`nimble install hottie`
+
 ![Github Actions](https://github.com/treeform/hottie/workflows/Github%20Actions/badge.svg)
+
+[API reference](https://nimdocs.com/treeform/hottie)
 
 Currently only works on Windows with GCC (mingw).
 
