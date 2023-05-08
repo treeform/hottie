@@ -10,8 +10,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: jiro4989/setup-nim-action@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
     - run: nimble test -y
     - run: nim c -d:release --debugger:native -o:examples/test5.exe examples/test5.nim
     - run: nim c -r --gc:arc src/hottie.nim examples/test5.exe
