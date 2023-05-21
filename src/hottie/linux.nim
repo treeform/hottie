@@ -55,6 +55,6 @@ proc sample*(
 
   cpuHotAddresses.inc(rip)
   if stacks:
-   cpuHotStacks.inc(stackTrace)
+    cpuHotStacks.inc(stackTrace)
 
-  return true
+  return false
