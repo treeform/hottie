@@ -15,5 +15,5 @@ jobs:
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - run: nimble test -y
-    - run: nim c -d:release --debugger:native -o:examples/test5.exe examples/test5.nim
+    - run: nim c -d:release --debugger:native --passL:"-no-pie" -o:examples/test5.exe examples/test5.nim
     - run: nim c -r --gc:arc src/hottie.nim examples/test5.exe
