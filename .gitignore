@@ -8,6 +8,7 @@
 nimcache
 *.pdb
 *.ilk
+*.out
 .*
 dump.txt
 *.dSYM

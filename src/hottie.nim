@@ -40,7 +40,7 @@ proc dumpScan(
     cpuHotPathsArr.add((k, v))
 
   if cpuHotPathsArr.len <= 1 or dumpLines.len <= 1:
-    quit "Did you compile your program with --debugger:native --passL:\"-no-pie\"?"
+    quit """Did you compile your program with --debugger:native --passL:"-no-pie"?"""
 
   dumpTable(cpuHotPathsArr, samplesPerSecond, cpuSamples, numLines)
 
